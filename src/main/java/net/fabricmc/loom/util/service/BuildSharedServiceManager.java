@@ -39,7 +39,7 @@ import org.slf4j.LoggerFactory;
 
 public abstract class BuildSharedServiceManager implements BuildService<BuildServiceParameters.None> {
 	private static final Logger LOGGER = LoggerFactory.getLogger(BuildSharedServiceManager.class);
-	private static final String NAME = "loom:sharedServiceManager";
+	private static final String NAME = "commonloom:sharedServiceManager";
 
 	private SharedServiceManager sharedServiceManager = new BuildSharedServiceManagerImpl();
 	private final AtomicInteger refCount = new AtomicInteger(0);
