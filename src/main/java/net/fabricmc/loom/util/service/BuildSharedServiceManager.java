@@ -39,13 +39,13 @@ import org.slf4j.LoggerFactory;
 
 public abstract class BuildSharedServiceManager implements BuildService<BuildServiceParameters.None> {
 	private static final Logger LOGGER = LoggerFactory.getLogger(BuildSharedServiceManager.class);
-	private static final String NAME = "commonloom:sharedServiceManager";
+	private static final String NAME = "commonloom:sharedServiceManager:";
 
 	private SharedServiceManager sharedServiceManager = new BuildSharedServiceManagerImpl();
 	private final AtomicInteger refCount = new AtomicInteger(0);
 
 	public static Provider<BuildSharedServiceManager> createForTask(Task task, BuildEventsListenerRegistry buildEventsListenerRegistry) {
-		Provider<BuildSharedServiceManager> provider = task.getProject().getGradle().getSharedServices().registerIfAbsent(NAME, BuildSharedServiceManager.class, spec -> {
+		Provider<BuildSharedServiceManager> provider = task.getProject().getGradle().getSharedServices().registerIfAbsent(NAME + task.getProject().getName(), BuildSharedServiceManager.class, spec -> {
 		});
 		task.usesService(provider);
 

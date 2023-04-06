@@ -62,7 +62,7 @@ public class LoomGradlePlugin implements BootstrappedPlugin {
 	}
 
 	public void apply(Project project) {
-		project.getLogger().lifecycle("Fabric Loom: " + LOOM_VERSION);
+		project.getLogger().lifecycle("Common Loom: " + LOOM_VERSION);
 		LibraryLocationLogger.logLibraryVersions();
 
 		// Apply default plugins
