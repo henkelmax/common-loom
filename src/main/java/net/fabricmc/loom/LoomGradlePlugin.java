@@ -52,6 +52,8 @@ public class LoomGradlePlugin implements BootstrappedPlugin {
 	public static final ObjectMapper OBJECT_MAPPER = new ObjectMapper().configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
 	public static final String LOOM_VERSION = Objects.requireNonNullElse(LoomGradlePlugin.class.getPackage().getImplementationVersion(), "0.0.0+unknown");
 
+	public static Project INSTANCE;
+
 	@Override
 	public void apply(PluginAware target) {
 		target.getPlugins().apply(LoomRepositoryPlugin.class);
@@ -63,6 +65,7 @@ public class LoomGradlePlugin implements BootstrappedPlugin {
 
 	public void apply(Project project) {
 		project.getLogger().lifecycle("Common Loom: " + LOOM_VERSION);
+		INSTANCE = project;
 		LibraryLocationLogger.logLibraryVersions();
 
 		// Apply default plugins
