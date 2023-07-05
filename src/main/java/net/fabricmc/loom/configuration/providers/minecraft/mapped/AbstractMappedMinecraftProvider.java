@@ -32,6 +32,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.StringJoiner;
 import java.util.function.Function;
 
 import org.gradle.api.Project;
@@ -40,6 +41,7 @@ import net.fabricmc.loom.LoomGradleExtension;
 import net.fabricmc.loom.api.mappings.layered.MappingsNamespace;
 import net.fabricmc.loom.configuration.ConfigContext;
 import net.fabricmc.loom.configuration.mods.dependency.LocalMavenHelper;
+import net.fabricmc.loom.configuration.providers.mappings.IntermediaryMappingsProvider;
 import net.fabricmc.loom.configuration.providers.mappings.MappingConfiguration;
 import net.fabricmc.loom.configuration.providers.minecraft.MinecraftJar;
 import net.fabricmc.loom.configuration.providers.minecraft.MinecraftProvider;
@@ -53,13 +55,13 @@ import net.fabricmc.tinyremapper.TinyRemapper;
 
 public abstract class AbstractMappedMinecraftProvider<M extends MinecraftProvider> implements MappedMinecraftProvider.ProviderImpl {
 	protected final M minecraftProvider;
-	protected final ConfigContext configContext;
+	private final Project project;
 	protected final LoomGradleExtension extension;
 
-	public AbstractMappedMinecraftProvider(ConfigContext configContext, M minecraftProvider) {
-		this.configContext = configContext;
+	public AbstractMappedMinecraftProvider(Project project, M minecraftProvider) {
 		this.minecraftProvider = minecraftProvider;
-		this.extension = configContext.extension();
+		this.project = project;
+		this.extension = LoomGradleExtension.get(project);
 	}
 
 	public abstract MappingsNamespace getTargetNamespace();
@@ -70,13 +72,13 @@ public abstract class AbstractMappedMinecraftProvider<M extends MinecraftProvide
 		return Collections.emptyList();
 	}
 
-	public void provide(boolean applyDependencies) throws Exception {
+	public List<MinecraftJar> provide(ProvideContext context) throws Exception {
 		final List<RemappedJars> remappedJars = getRemappedJars();
 		assert !remappedJars.isEmpty();
 
-		if (!areOutputsValid(remappedJars) || extension.refreshDeps()) {
+		if (!areOutputsValid(remappedJars) || context.refreshOutputs()) {
 			try {
-				remapInputs(remappedJars);
+				remapInputs(remappedJars, context.configContext());
 			} catch (Throwable t) {
 				cleanOutputs(remappedJars);
 
@@ -84,17 +86,25 @@ public abstract class AbstractMappedMinecraftProvider<M extends MinecraftProvide
 			}
 		}
 
-		if (applyDependencies) {
+		if (context.applyDependencies()) {
 			final List<String> dependencyTargets = getDependencyTargets();
 
-			if (dependencyTargets.isEmpty()) {
-				return;
+			if (!dependencyTargets.isEmpty()) {
+				MinecraftSourceSets.get(getProject()).applyDependencies(
+						(configuration, name) -> getProject().getDependencies().add(configuration, getDependencyNotation(name)),
+						dependencyTargets
+				);
 			}
+		}
 
-			MinecraftSourceSets.get(getProject()).applyDependencies(
-					(configuration, name) -> getProject().getDependencies().add(configuration, getDependencyNotation(name)),
-					dependencyTargets
-			);
+		return remappedJars.stream()
+				.map(RemappedJars::outputJar)
+				.toList();
+	}
+
+	public record ProvideContext(boolean applyDependencies, boolean refreshOutputs, ConfigContext configContext) {
+		ProvideContext withApplyDependencies(boolean applyDependencies) {
+			return new ProvideContext(applyDependencies, refreshOutputs(), configContext());
 		}
 	}
 
@@ -127,13 +137,22 @@ public abstract class AbstractMappedMinecraftProvider<M extends MinecraftProvide
 	}
 
 	protected String getName(String name) {
-		String computedName = "minecraft-" + name;;
+		final String intermediateName = extension.getIntermediateMappingsProvider().getName();
 
-		if (getTargetNamespace() != MappingsNamespace.NAMED) {
-			computedName = getTargetNamespace().name() + "-" + name;
+		var sj = new StringJoiner("-");
+		sj.add("minecraft");
+		sj.add(name);
+
+		// Include the intermediate mapping name if it's not the default intermediary
+		if (!intermediateName.equals(IntermediaryMappingsProvider.NAME)) {
+			sj.add(intermediateName);
 		}
 
-		return computedName.toLowerCase(Locale.ROOT);
+		if (getTargetNamespace() != MappingsNamespace.NAMED) {
+			sj.add(getTargetNamespace().name());
+		}
+
+		return sj.toString().toLowerCase(Locale.ROOT);
 	}
 
 	protected String getVersion() {
@@ -154,15 +173,15 @@ public abstract class AbstractMappedMinecraftProvider<M extends MinecraftProvide
 		return true;
 	}
 
-	private void remapInputs(List<RemappedJars> remappedJars) throws IOException {
+	private void remapInputs(List<RemappedJars> remappedJars, ConfigContext configContext) throws IOException {
 		cleanOutputs(remappedJars);
 
 		for (RemappedJars remappedJar : remappedJars) {
-			remapJar(remappedJar);
+			remapJar(remappedJar, configContext);
 		}
 	}
 
-	private void remapJar(RemappedJars remappedJars) throws IOException {
+	private void remapJar(RemappedJars remappedJars, ConfigContext configContext) throws IOException {
 		final MappingConfiguration mappingConfiguration = extension.getMappingConfiguration();
 		final String fromM = remappedJars.sourceNamespace().toString();
 		final String toM = getTargetNamespace().toString();
@@ -214,12 +233,8 @@ public abstract class AbstractMappedMinecraftProvider<M extends MinecraftProvide
 		}
 	}
 
-	public ConfigContext getConfigContext() {
-		return configContext;
-	}
-
 	public Project getProject() {
-		return getConfigContext().project();
+		return project;
 	}
 
 	public M getMinecraftProvider() {
