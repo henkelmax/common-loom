@@ -39,15 +39,12 @@ import java.util.stream.Collectors;
 import org.gradle.api.Project;
 import org.gradle.api.file.ConfigurableFileCollection;
 import org.gradle.api.file.FileCollection;
-import org.gradle.api.provider.Property;
-import org.gradle.api.services.ServiceReference;
 import org.gradle.api.specs.Spec;
 import org.gradle.api.tasks.JavaExec;
 import org.jetbrains.annotations.NotNull;
 
 import net.fabricmc.loom.configuration.ide.RunConfig;
 import net.fabricmc.loom.util.Constants;
-import net.fabricmc.loom.util.gradle.SyncTaskBuildService;
 
 public abstract class AbstractRunTask extends JavaExec {
 	private static final CharsetEncoder ASCII_ENCODER = StandardCharsets.US_ASCII.newEncoder();
@@ -57,8 +54,9 @@ public abstract class AbstractRunTask extends JavaExec {
 	private final ConfigurableFileCollection classpath = getProject().getObjects().fileCollection();
 
 	// Prevent Gradle from running two run tasks in parallel
-	@ServiceReference(SyncTaskBuildService.NAME)
-	abstract Property<SyncTaskBuildService> getSyncTask();
+	/*@ServiceReference(SyncTaskBuildService.NAME)
+	abstract Property<SyncTaskBuildService> getSyncTask();*/
+	// TODO Check if this works in newer Gradle versions
 
 	public AbstractRunTask(Function<Project, RunConfig> configProvider) {
 		super();
@@ -151,13 +149,13 @@ public abstract class AbstractRunTask extends JavaExec {
 			char c = arg.charAt(i);
 
 			switch (c) {
-			case ' ', '#', '\'' -> sb.append('"').append(c).append('"');
-			case '"' -> sb.append("\"\\\"\"");
-			case '\n' -> sb.append("\"\\n\"");
-			case '\r' -> sb.append("\"\\r\"");
-			case '\t' -> sb.append("\"\\t\"");
-			case '\f' -> sb.append("\"\\f\"");
-			default -> sb.append(c);
+				case ' ', '#', '\'' -> sb.append('"').append(c).append('"');
+				case '"' -> sb.append("\"\\\"\"");
+				case '\n' -> sb.append("\"\\n\"");
+				case '\r' -> sb.append("\"\\r\"");
+				case '\t' -> sb.append("\"\\t\"");
+				case '\f' -> sb.append("\"\\f\"");
+				default -> sb.append(c);
 			}
 		}
 
@@ -188,7 +186,7 @@ public abstract class AbstractRunTask extends JavaExec {
 	}
 
 	@Override
-	public @NotNull JavaExec classpath(Object @NotNull... paths) {
+	public @NotNull JavaExec classpath(Object @NotNull ... paths) {
 		this.classpath.from(paths);
 		return this;
 	}

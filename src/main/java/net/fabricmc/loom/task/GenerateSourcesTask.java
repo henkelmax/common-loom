@@ -49,7 +49,6 @@ import javax.inject.Inject;
 import org.gradle.api.file.ConfigurableFileCollection;
 import org.gradle.api.file.RegularFileProperty;
 import org.gradle.api.provider.Property;
-import org.gradle.api.services.ServiceReference;
 import org.gradle.api.tasks.Input;
 import org.gradle.api.tasks.InputFile;
 import org.gradle.api.tasks.InputFiles;
@@ -81,7 +80,6 @@ import net.fabricmc.loom.util.ExceptionUtil;
 import net.fabricmc.loom.util.FileSystemUtil;
 import net.fabricmc.loom.util.IOStringConsumer;
 import net.fabricmc.loom.util.Platform;
-import net.fabricmc.loom.util.gradle.SyncTaskBuildService;
 import net.fabricmc.loom.util.gradle.ThreadedProgressLoggerConsumer;
 import net.fabricmc.loom.util.gradle.ThreadedSimpleProgressLogger;
 import net.fabricmc.loom.util.gradle.WorkerDaemonClientsManagerHelper;
@@ -137,8 +135,9 @@ public abstract class GenerateSourcesTask extends AbstractLoomTask {
 	public abstract WorkerDaemonClientsManager getWorkerDaemonClientsManager();
 
 	// Prevent Gradle from running two gen sources tasks in parallel
-	@ServiceReference(SyncTaskBuildService.NAME)
-	abstract Property<SyncTaskBuildService> getSyncTask();
+	/*@ServiceReference(SyncTaskBuildService.NAME)
+	abstract Property<SyncTaskBuildService> getSyncTask();*/
+	// TODO Check if this works in newer Gradle versions
 
 	@Inject
 	public GenerateSourcesTask(DecompilerOptions decompilerOptions) {
@@ -179,7 +178,7 @@ public abstract class GenerateSourcesTask extends AbstractLoomTask {
 		Files.deleteIfExists(ipcPath);
 
 		try (ThreadedProgressLoggerConsumer loggerConsumer = new ThreadedProgressLoggerConsumer(getProject(), decompilerOptions.getName(), "Decompiling minecraft sources");
-				IPCServer logReceiver = new IPCServer(ipcPath, loggerConsumer)) {
+			 IPCServer logReceiver = new IPCServer(ipcPath, loggerConsumer)) {
 			doWork(logReceiver, inputJar, runtimeJar);
 		} catch (InterruptedException e) {
 			throw new RuntimeException("Failed to shutdown log receiver", e);
@@ -324,10 +323,15 @@ public abstract class GenerateSourcesTask extends AbstractLoomTask {
 		Property<DecompilerOptions.Dto> getDecompilerOptions();
 
 		RegularFileProperty getInputJar();
+
 		RegularFileProperty getRuntimeJar();
+
 		RegularFileProperty getSourcesDestinationJar();
+
 		RegularFileProperty getLinemap();
+
 		RegularFileProperty getLinemapJar();
+
 		RegularFileProperty getMappings();
 
 		RegularFileProperty getIPCPath();
@@ -414,7 +418,7 @@ public abstract class GenerateSourcesTask extends AbstractLoomTask {
 			remapper.readMappings(linemap.toFile());
 
 			try (FileSystemUtil.Delegate inFs = FileSystemUtil.getJarFileSystem(oldCompiledJar.toFile(), true);
-					FileSystemUtil.Delegate outFs = FileSystemUtil.getJarFileSystem(linemappedJarDestination.toFile(), true)) {
+				 FileSystemUtil.Delegate outFs = FileSystemUtil.getJarFileSystem(linemappedJarDestination.toFile(), true)) {
 				remapper.process(logger, inFs.get().getPath("/"), outFs.get().getPath("/"));
 			}
 		}
